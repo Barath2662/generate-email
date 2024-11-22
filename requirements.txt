@@ -1,4 +1,3 @@
-Flask
+streamlit
 openpyxl
-python-pptx
-Flask-Mail
+reportlab
