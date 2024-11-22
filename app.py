@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
-import subprocess
+from fpdf import FPDF
 
 # Function to modify the PPTX certificate template and save it as a new PPTX file
 def modify_pptx(template_path, name, output_pptx_path):
@@ -22,18 +22,20 @@ def modify_pptx(template_path, name, output_pptx_path):
     # Save modified PPTX file
     prs.save(output_pptx_path)
 
-# Function to convert PPTX to PDF using LibreOffice (or another method)
-def convert_pptx_to_pdf(input_pptx_path):
-    output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
-    command = f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(input_pptx_path)}"'
+# Function to create a PDF certificate using FPDF
+def create_pdf_certificate(template_path, name, output_pdf_path):
+    prs = Presentation(template_path)
+    pdf = FPDF()
     
-    # Run the conversion command and check for errors
-    try:
-        result = subprocess.run(command, shell=True, check=True)
-        return output_pdf_path if os.path.exists(output_pdf_path) else None
-    except subprocess.CalledProcessError as e:
-        st.error(f"Error converting {input_pptx_path} to PDF: {str(e)}")
-        return None
+    for slide in prs.slides:
+        pdf.add_page()
+        for shape in slide.shapes:
+            if hasattr(shape, 'text'):
+                text = shape.text.replace('{{Name}}', name)  # Replace placeholder in text
+                pdf.set_font("Arial", size=12)
+                pdf.multi_cell(0, 10, txt=text)  # Add text to PDF
+
+    pdf.output(output_pdf_path)
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -111,11 +113,14 @@ def main():
                 # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
-                # Convert modified PPTX to PDF (make sure LibreOffice is installed)
-                pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
+                # Create PDF certificate using FPDF (this can be customized further)
+                pdf_filename = f'certificate_{index + 1}.pdf'
+                pdf_filepath = os.path.join(folder_name, pdf_filename)
+                
+                create_pdf_certificate(output_pptx_filepath, name, pdf_filepath)
 
                 # Check if PDF was created successfully before sending email
-                if pdf_filepath and os.path.exists(pdf_filepath):
+                if os.path.exists(pdf_filepath):
                     # Send email with attachment (assuming there's an Email column in Excel)
                     recipient_email = row['Email']  # Adjust based on your Excel column name
                     send_email(recipient_email, email_subject, email_body, pdf_filepath)
