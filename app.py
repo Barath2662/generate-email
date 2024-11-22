@@ -7,7 +7,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
-from fpdf import FPDF
 
 # Function to modify the PPTX certificate template and save it as a new PPTX file
 def modify_pptx(template_path, name, output_pptx_path):
@@ -17,28 +16,24 @@ def modify_pptx(template_path, name, output_pptx_path):
     for slide in prs.slides:
         for shape in slide.shapes:
             if hasattr(shape, 'text'):
+                # Only replace {{Name}} and keep everything else intact
                 shape.text = shape.text.replace('{{Name}}', name)
     
     # Save modified PPTX file
     prs.save(output_pptx_path)
 
-# Function to create a PDF certificate using FPDF
-def create_pdf_certificate(template_path, name, output_pdf_path):
-    prs = Presentation(template_path)
-    pdf = FPDF()
+# Function to convert PPTX to PDF using unoconv (if available)
+def convert_pptx_to_pdf(input_pptx_path):
+    output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
+    command = f'unoconv -f pdf "{input_pptx_path}"'
     
-    # Create a PDF page for each slide in the PPTX
-    for slide in prs.slides:
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        
-        # Collect text from each shape in the slide and replace {{Name}}
-        for shape in slide.shapes:
-            if hasattr(shape, 'text'):
-                text = shape.text.replace('{{Name}}', name)  # Replace placeholder with actual name
-                pdf.multi_cell(0, 10, txt=text)  # Add text to PDF
-
-    pdf.output(output_pdf_path)
+    # Run the conversion command and check for errors
+    try:
+        os.system(command)
+        return output_pdf_path if os.path.exists(output_pdf_path) else None
+    except Exception as e:
+        st.error(f"Error converting {input_pptx_path} to PDF: {str(e)}")
+        return None
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -116,14 +111,11 @@ def main():
                 # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
-                # Create PDF certificate using FPDF (this can be customized further)
-                pdf_filename = f'certificate_{index + 1}.pdf'
-                pdf_filepath = os.path.join(folder_name, pdf_filename)
-                
-                create_pdf_certificate(output_pptx_filepath, name, pdf_filepath)
+                # Convert modified PPTX to PDF (make sure unoconv is installed if you're using it)
+                pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
 
                 # Check if PDF was created successfully before sending email
-                if os.path.exists(pdf_filepath):
+                if pdf_filepath and os.path.exists(pdf_filepath):
                     # Send email with attachment (assuming there's an Email column in Excel)
                     recipient_email = row['Email']  # Adjust based on your Excel column name
                     send_email(recipient_email, email_subject, email_body, pdf_filepath)
