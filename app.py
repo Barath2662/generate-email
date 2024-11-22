@@ -25,11 +25,14 @@ def modify_pptx(template_path, name, output_pptx_path):
 # Function to convert PPTX to PDF using Aspose.Slides
 def convert_pptx_to_pdf(input_pptx_path):
     output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
-    presentation = slides.Presentation(input_pptx_path)
     
-    # Save presentation as PDF
-    presentation.save(output_pdf_path, slides.export.SaveFormat.PDF)
-    return output_pdf_path
+    try:
+        presentation = slides.Presentation(input_pptx_path)
+        presentation.save(output_pdf_path, slides.export.SaveFormat.PDF)
+        return output_pdf_path
+    except Exception as e:
+        st.error(f"Error converting {input_pptx_path} to PDF: {str(e)}")
+        return None
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
