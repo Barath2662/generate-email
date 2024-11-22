@@ -84,12 +84,10 @@ def main():
 
     if st.button("Generate Certificates"):
         if template_file and data_file:
-            # Create a unique folder based on task name or timestamp
             task_name = st.text_input("Enter Task Name", value="Certificates")
             folder_name = f'uploads/{task_name}'
             os.makedirs(folder_name, exist_ok=True)
 
-            # Save uploaded files temporarily in uploads directory
             template_path = os.path.join(folder_name, template_file.name)
             data_path = os.path.join(folder_name, data_file.name)
 
@@ -98,7 +96,6 @@ def main():
             with open(data_path, "wb") as f:
                 f.write(data_file.getbuffer())
 
-            # Read Excel data containing names and emails
             df = pd.read_excel(data_path)
 
             for index, row in df.iterrows():
@@ -107,15 +104,11 @@ def main():
                 output_pptx_filename = f'certificate_{index + 1}.pptx'
                 output_pptx_filepath = os.path.join(folder_name, output_pptx_filename)
                 
-                # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
-                # Convert modified PPTX to PDF using Aspose.Slides
                 pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
 
-                # Check if PDF was created successfully before sending email
                 if pdf_filepath and os.path.exists(pdf_filepath):
-                    # Send email with attachment (assuming there's an Email column in Excel)
                     recipient_email = row['Email']  # Adjust based on your Excel column name
                     send_email(recipient_email, email_subject, email_body, pdf_filepath)
                 else:
