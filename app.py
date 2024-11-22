@@ -52,17 +52,16 @@ def send_email(recipient_email, subject, body, attachment_path):
             msg.attach(part)
 
         # Send email via SMTP server
-        try:
-            with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                server.starttls()  # Upgrade the connection to secure
-                server.login(sender_email, sender_password)
-                server.send_message(msg)
-                st.success(f"Email sent to {recipient_email}")
-        except Exception as e:
-            st.error(f"Failed to send email to {recipient_email}: {str(e)}")
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()  # Upgrade the connection to secure
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            st.success(f"Email sent to {recipient_email}")
     
     except FileNotFoundError:
         st.error(f"Attachment file not found: {attachment_path}")
+    except Exception as e:
+        st.error(f"Failed to send email to {recipient_email}: {str(e)}")
 
 def main():
     st.title("Certificate Generator")
