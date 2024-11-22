@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Generator</title>
+</head>
+<body>
+    <h1>Certificate Generator</h1>
+    <form action="/generate" method="post" enctype="multipart/form-data">
+        <label for="template">Upload PPTX Template:</label>
+        <input type="file" name="template" accept=".pptx" required><br><br>
+
+        <label for="data">Upload Excel File:</label>
+        <input type="file" name="data" accept=".xlsx" required><br><br>
+
+        <label for="subject">Email Subject:</label>
+        <input type="text" name="subject" required><br><br>
+
+        <label for="body">Email Body:</label><br>
+        <textarea name="body" rows="4" cols="50" required></textarea><br><br>
+
+        <button type="submit">Generate Certificates</button>
+    </form>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+</body>
+</html>
