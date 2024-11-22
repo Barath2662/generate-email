@@ -1,6 +1,5 @@
-streamlit
-openpyxl
+Flask
+requests
+pandas
 python-pptx
-reportlab
-fpdf
 aspose.slides
