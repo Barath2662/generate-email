@@ -3,18 +3,12 @@ import pandas as pd
 from pptx import Presentation
 import zipfile
 import os
-from flask_mail import Mail, Message
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
-# Configure Flask-Mail settings (modify with your credentials)
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 587
-MAIL_USE_TLS = True
-MAIL_USERNAME = 'barathvikraman.projects@gmail.com'  # Your email address
-MAIL_PASSWORD = 'barath2606'          # Your email password or app password
-
-# Initialize Flask-Mail (not used directly in Streamlit but setup for sending emails)
-mail = Mail()
-
+# Function to modify the PPTX certificate template
 def modify_certificate(template_path, name, output_path):
     prs = Presentation(template_path)
     
@@ -27,23 +21,45 @@ def modify_certificate(template_path, name, output_path):
     # Save the modified PPTX file
     prs.save(output_path)
 
+# Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
-    msg = Message(
-        subject=subject,
-        sender=MAIL_USERNAME,
-        recipients=[recipient_email],
-        body=body.format(name=recipient_email.split('@')[0])
-    )
-    
-    with open(attachment_path, "rb") as fp:
-        msg.attach(os.path.basename(attachment_path), 'application/vnd.openxmlformats-officedocument.presentationml.presentation', fp.read())
+    sender_email = "barathvikraman.projects@gmail.com"  # Your email address
+    sender_password = "barath2606"       # Your email password or app password
 
-    mail.send(msg)
+    # Create a multipart message and set headers
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+
+    # Attach body text to email
+    msg.attach(MIMEText(body.format(name=recipient_email.split('@')[0]), 'plain'))
+
+    # Attach the certificate file
+    with open(attachment_path, "rb") as attachment:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            f"attachment; filename= {os.path.basename(attachment_path)}",
+        )
+        msg.attach(part)
+
+    # Send email via SMTP server
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()  # Upgrade the connection to secure
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            st.success(f"Email sent to {recipient_email}")
+    except Exception as e:
+        st.error(f"Failed to send email to {recipient_email}: {str(e)}")
 
 def main():
     st.title("Certificate Generator")
 
-    # File upload section
+    # File upload section for PPTX and Excel files
     template_file = st.file_uploader("Upload PPTX Template", type=["pptx"])
     data_file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
@@ -52,7 +68,8 @@ def main():
 
     if st.button("Generate Certificates"):
         if template_file and data_file:
-            # Save uploaded files temporarily
+            # Save uploaded files temporarily in uploads directory
+            os.makedirs('uploads', exist_ok=True)
             template_path = os.path.join('uploads', template_file.name)
             data_path = os.path.join('uploads', data_file.name)
 
@@ -61,7 +78,7 @@ def main():
             with open(data_path, "wb") as f:
                 f.write(data_file.getbuffer())
 
-            # Read Excel data
+            # Read Excel data containing names and emails
             df = pd.read_excel(data_path)
 
             # Create a zip file to store all generated PPTX certificates
@@ -75,7 +92,7 @@ def main():
                     output_filename = f'certificate_{index + 1}.pptx'
                     output_filepath = os.path.join('uploads', output_filename)
                     
-                    # Modify the PPTX template with the name
+                    # Modify the PPTX template with the name and save it
                     modify_certificate(template_path, name, output_filepath)
                     
                     # Add the modified PPTX to the zip file
