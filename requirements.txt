@@ -3,3 +3,4 @@ openpyxl
 python-pptx
 reportlab
 fpdf
+aspose.slides
