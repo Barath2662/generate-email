@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from pptx import Presentation
-import zipfile
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -9,8 +8,8 @@ from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
 
-# Function to modify the PPTX certificate template
-def modify_certificate(template_path, name, output_path):
+# Function to modify the PPTX certificate template and save it as a new PPTX file
+def modify_pptx(template_path, name, output_pptx_path):
     prs = Presentation(template_path)
     
     # Replace {{Name}} placeholder in each slide of the presentation
@@ -19,8 +18,12 @@ def modify_certificate(template_path, name, output_path):
             if hasattr(shape, 'text'):
                 shape.text = shape.text.replace('{{Name}}', name)
     
-    # Save the modified PPTX file
-    prs.save(output_path)
+    # Save modified PPTX file
+    prs.save(output_pptx_path)
+
+# Function to convert PPTX to PDF using LibreOffice (or another method)
+def convert_pptx_to_pdf(input_pptx_path, output_pdf_path):
+    os.system(f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(output_pdf_path)}"')
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -36,7 +39,7 @@ def send_email(recipient_email, subject, body, attachment_path):
     # Attach body text to email
     msg.attach(MIMEText(body.format(name=recipient_email.split('@')[0]), 'plain'))
 
-    # Attach the certificate file
+    # Attach the certificate file (PDF)
     with open(attachment_path, "rb") as attachment:
         part = MIMEBase("application", "octet-stream")
         part.set_payload(attachment.read())
@@ -82,29 +85,26 @@ def main():
             # Read Excel data containing names and emails
             df = pd.read_excel(data_path)
 
-            # Create a zip file to store all generated PPTX certificates
-            zip_filename = 'certificates.zip'
-            zip_filepath = os.path.join('uploads', zip_filename)
+            for index, row in df.iterrows():
+                name = row['Name']  # Adjust based on your Excel column name
+                
+                output_pptx_filename = f'certificate_{index + 1}.pptx'
+                output_pptx_filepath = os.path.join('uploads', output_pptx_filename)
+                
+                # Modify the PPTX template and save it with the name replaced
+                modify_pptx(template_path, name, output_pptx_filepath)
 
-            with zipfile.ZipFile(zip_filepath, 'w') as zipf:
-                for index, row in df.iterrows():
-                    name = row['Name']  # Adjust based on your Excel column name
-                    
-                    output_filename = f'certificate_{index + 1}.pptx'
-                    output_filepath = os.path.join('uploads', output_filename)
-                    
-                    # Modify the PPTX template with the name and save it
-                    modify_certificate(template_path, name, output_filepath)
-                    
-                    # Add the modified PPTX to the zip file
-                    zipf.write(output_filepath, arcname=output_filename)
+                # Convert modified PPTX to PDF (make sure LibreOffice is installed)
+                pdf_filename = f'certificate_{index + 1}.pdf'
+                pdf_filepath = os.path.join('uploads', pdf_filename)
+                
+                convert_pptx_to_pdf(output_pptx_filepath, pdf_filepath)
 
-                    # Send email with attachment (assuming there's an Email column in Excel)
-                    recipient_email = row['Email']  # Adjust based on your Excel column name
-                    send_email(recipient_email, email_subject, email_body, output_filepath)
+                # Send email with attachment (assuming there's an Email column in Excel)
+                recipient_email = row['Email']  # Adjust based on your Excel column name
+                send_email(recipient_email, email_subject, email_body, pdf_filepath)
 
-            st.success(f"Certificates generated and sent! Download ZIP: {zip_filename}")
-            st.download_button("Download ZIP", zip_filepath)
+            st.success("All certificates generated and emailed successfully!")
 
 if __name__ == "__main__":
     main()
