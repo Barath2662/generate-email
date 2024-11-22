@@ -1,102 +1,92 @@
-from flask import Flask, request, render_template, send_file
-import os
+import streamlit as st
 import pandas as pd
 from pptx import Presentation
 import zipfile
+import os
 from flask_mail import Mail, Message
 
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads/'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Configure Flask-Mail settings (modify with your credentials)
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USE_TLS = True
+MAIL_USERNAME = 'barathvikraman.projects@gmail.com'  # Your email address
+MAIL_PASSWORD = 'barath2606'          # Your email password or app password
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com' 
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'barathvikraman.projects@gmail.com'  
-app.config['MAIL_PASSWORD'] = 'barath2606'  
-mail = Mail(app)
+# Initialize Flask-Mail (not used directly in Streamlit but setup for sending emails)
+mail = Mail()
 
 def modify_certificate(template_path, name, output_path):
     prs = Presentation(template_path)
     
-
+    # Replace {{Name}} placeholder in each slide of the presentation
     for slide in prs.slides:
         for shape in slide.shapes:
             if hasattr(shape, 'text'):
                 shape.text = shape.text.replace('{{Name}}', name)
     
-  
+    # Save the modified PPTX file
     prs.save(output_path)
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/generate', methods=['POST'])
-def generate_certificates():
-    if 'template' not in request.files or 'data' not in request.files:
-        return render_template('index.html', message='No file part')
-
-    template_file = request.files['template']
-    data_file = request.files['data']
-
-    if template_file.filename == '' or data_file.filename == '':
-        return render_template('index.html', message='No selected file')
-
-
-    email_subject = request.form.get('subject')
-    email_body = request.form.get('body')
-
-
-    template_path = os.path.join(app.config['UPLOAD_FOLDER'], template_file.filename)
-    data_path = os.path.join(app.config['UPLOAD_FOLDER'], data_file.filename)
-    
-    template_file.save(template_path)
-    data_file.save(data_path)
-
-
-    df = pd.read_excel(data_path)
-
-
-    zip_filename = 'certificates.zip'
-    zip_filepath = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
-
-    with zipfile.ZipFile(zip_filepath, 'w') as zipf:
-        for index, row in df.iterrows():
-            name = row['Name']  
-            
-            output_filename = f'certificate_{index + 1}.pptx'
-            output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            
-
-            modify_certificate(template_path, name, output_filepath)
-            
-
-            zipf.write(output_filepath, arcname=output_filename)
-
-            recipient_email = row['Email']  # Adjust based on your Excel column name
-            send_email(recipient_email, email_subject, email_body, output_filepath)
-
-    os.remove(template_path)
-    os.remove(data_path)
-
-    return send_file(zip_filepath, as_attachment=True)
 
 def send_email(recipient_email, subject, body, attachment_path):
     msg = Message(
         subject=subject,
-        sender=app.config['MAIL_USERNAME'],
-        recipients=[recipient_email],  # Send to recipient's email address from Excel
-        body=body.format(name=recipient_email.split('@')[0])  # You can customize this if needed.
+        sender=MAIL_USERNAME,
+        recipients=[recipient_email],
+        body=body.format(name=recipient_email.split('@')[0])
     )
     
-    with app.open_resource(attachment_path) as fp:
+    with open(attachment_path, "rb") as fp:
         msg.attach(os.path.basename(attachment_path), 'application/vnd.openxmlformats-officedocument.presentationml.presentation', fp.read())
 
     mail.send(msg)
 
-if __name__ == '__main__':
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-        
-    app.run(debug=True)
+def main():
+    st.title("Certificate Generator")
+
+    # File upload section
+    template_file = st.file_uploader("Upload PPTX Template", type=["pptx"])
+    data_file = st.file_uploader("Upload Excel File", type=["xlsx"])
+
+    email_subject = st.text_input("Email Subject")
+    email_body = st.text_area("Email Body")
+
+    if st.button("Generate Certificates"):
+        if template_file and data_file:
+            # Save uploaded files temporarily
+            template_path = os.path.join('uploads', template_file.name)
+            data_path = os.path.join('uploads', data_file.name)
+
+            with open(template_path, "wb") as f:
+                f.write(template_file.getbuffer())
+            with open(data_path, "wb") as f:
+                f.write(data_file.getbuffer())
+
+            # Read Excel data
+            df = pd.read_excel(data_path)
+
+            # Create a zip file to store all generated PPTX certificates
+            zip_filename = 'certificates.zip'
+            zip_filepath = os.path.join('uploads', zip_filename)
+
+            with zipfile.ZipFile(zip_filepath, 'w') as zipf:
+                for index, row in df.iterrows():
+                    name = row['Name']  # Adjust based on your Excel column name
+                    
+                    output_filename = f'certificate_{index + 1}.pptx'
+                    output_filepath = os.path.join('uploads', output_filename)
+                    
+                    # Modify the PPTX template with the name
+                    modify_certificate(template_path, name, output_filepath)
+                    
+                    # Add the modified PPTX to the zip file
+                    zipf.write(output_filepath, arcname=output_filename)
+
+                    # Send email with attachment (assuming there's an Email column in Excel)
+                    recipient_email = row['Email']  # Adjust based on your Excel column name
+                    send_email(recipient_email, email_subject, email_body, output_filepath)
+
+            st.success(f"Certificates generated and sent! Download ZIP: {zip_filename}")
+            st.download_button("Download ZIP", zip_filepath)
+
+if __name__ == "__main__":
+    main()
