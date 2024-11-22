@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
+import subprocess
 
 # Function to modify the PPTX certificate template and save it as a new PPTX file
 def modify_pptx(template_path, name, output_pptx_path):
@@ -25,8 +26,14 @@ def modify_pptx(template_path, name, output_pptx_path):
 def convert_pptx_to_pdf(input_pptx_path):
     output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
     command = f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(input_pptx_path)}"'
-    os.system(command)
-    return output_pdf_path
+    
+    # Run the conversion command and check for errors
+    try:
+        result = subprocess.run(command, shell=True, check=True)
+        return output_pdf_path if os.path.exists(output_pdf_path) else None
+    except subprocess.CalledProcessError as e:
+        st.error(f"Error converting {input_pptx_path} to PDF: {str(e)}")
+        return None
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -108,7 +115,7 @@ def main():
                 pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
 
                 # Check if PDF was created successfully before sending email
-                if os.path.exists(pdf_filepath):
+                if pdf_filepath and os.path.exists(pdf_filepath):
                     # Send email with attachment (assuming there's an Email column in Excel)
                     recipient_email = row['Email']  # Adjust based on your Excel column name
                     send_email(recipient_email, email_subject, email_body, pdf_filepath)
