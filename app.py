@@ -25,7 +25,7 @@ def modify_certificate(template_path, name, output_path):
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
     sender_email = "barathvikraman.projects@gmail.com"  # Your email address
-    sender_password = "barath2606"       # Your email password or app password
+    sender_password = "sbtz gshq eoos grsd"       # Your email password or app password
 
     # Create a multipart message and set headers
     msg = MIMEMultipart()
