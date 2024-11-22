@@ -22,8 +22,11 @@ def modify_pptx(template_path, name, output_pptx_path):
     prs.save(output_pptx_path)
 
 # Function to convert PPTX to PDF using LibreOffice (or another method)
-def convert_pptx_to_pdf(input_pptx_path, output_pdf_path):
-    os.system(f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(output_pdf_path)}"')
+def convert_pptx_to_pdf(input_pptx_path):
+    output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
+    command = f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(input_pptx_path)}"'
+    os.system(command)
+    return output_pdf_path
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -66,6 +69,9 @@ def send_email(recipient_email, subject, body, attachment_path):
 def main():
     st.title("Certificate Generator")
 
+    # Input for task name (to create a unique folder)
+    task_name = st.text_input("Enter Task Name")
+
     # File upload section for PPTX and Excel files
     template_file = st.file_uploader("Upload PPTX Template", type=["pptx"])
     data_file = st.file_uploader("Upload Excel File", type=["xlsx"])
@@ -74,11 +80,14 @@ def main():
     email_body = st.text_area("Email Body")
 
     if st.button("Generate Certificates"):
-        if template_file and data_file:
+        if template_file and data_file and task_name:
+            # Create a unique folder for this task under uploads directory
+            folder_name = f'uploads/{task_name}'
+            os.makedirs(folder_name, exist_ok=True)
+
             # Save uploaded files temporarily in uploads directory
-            os.makedirs('uploads', exist_ok=True)
-            template_path = os.path.join('uploads', template_file.name)
-            data_path = os.path.join('uploads', data_file.name)
+            template_path = os.path.join(folder_name, template_file.name)
+            data_path = os.path.join(folder_name, data_file.name)
 
             with open(template_path, "wb") as f:
                 f.write(template_file.getbuffer())
@@ -92,16 +101,13 @@ def main():
                 name = row['Name']  # Adjust based on your Excel column name
                 
                 output_pptx_filename = f'certificate_{index + 1}.pptx'
-                output_pptx_filepath = os.path.join('uploads', output_pptx_filename)
+                output_pptx_filepath = os.path.join(folder_name, output_pptx_filename)
                 
                 # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
                 # Convert modified PPTX to PDF (make sure LibreOffice is installed)
-                pdf_filename = f'certificate_{index + 1}.pdf'
-                pdf_filepath = os.path.join('uploads', pdf_filename)
-                
-                convert_pptx_to_pdf(output_pptx_filepath, pdf_filepath)
+                pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
 
                 # Check if PDF was created successfully before sending email
                 if os.path.exists(pdf_filepath):
