@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
+import aspose.slides as slides
 
 # Function to modify the PPTX certificate template and save it as a new PPTX file
 def modify_pptx(template_path, name, output_pptx_path):
@@ -16,24 +17,19 @@ def modify_pptx(template_path, name, output_pptx_path):
     for slide in prs.slides:
         for shape in slide.shapes:
             if hasattr(shape, 'text'):
-                # Only replace {{Name}} and keep everything else intact
                 shape.text = shape.text.replace('{{Name}}', name)
     
     # Save modified PPTX file
     prs.save(output_pptx_path)
 
-# Function to convert PPTX to PDF using unoconv (if available)
+# Function to convert PPTX to PDF using Aspose.Slides
 def convert_pptx_to_pdf(input_pptx_path):
     output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
-    command = f'unoconv -f pdf "{input_pptx_path}"'
+    presentation = slides.Presentation(input_pptx_path)
     
-    # Run the conversion command and check for errors
-    try:
-        os.system(command)
-        return output_pdf_path if os.path.exists(output_pdf_path) else None
-    except Exception as e:
-        st.error(f"Error converting {input_pptx_path} to PDF: {str(e)}")
-        return None
+    # Save presentation as PDF
+    presentation.save(output_pdf_path, slides.export.SaveFormat.PDF)
+    return output_pdf_path
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
@@ -111,7 +107,7 @@ def main():
                 # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
-                # Convert modified PPTX to PDF (make sure unoconv is installed if you're using it)
+                # Convert modified PPTX to PDF using Aspose.Slides
                 pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
 
                 # Check if PDF was created successfully before sending email
