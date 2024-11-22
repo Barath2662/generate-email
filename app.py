@@ -7,6 +7,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from email.mime.text import MIMEText
 
 # Function to modify the PPTX certificate template
 def modify_certificate(template_path, name, output_path):
