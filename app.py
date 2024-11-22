@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.text import MIMEText
+from fpdf import FPDF
 
 # Function to modify the PPTX certificate template and save it as a new PPTX file
 def modify_pptx(template_path, name, output_pptx_path):
@@ -21,17 +22,23 @@ def modify_pptx(template_path, name, output_pptx_path):
     # Save modified PPTX file
     prs.save(output_pptx_path)
 
-# Function to convert PPTX to PDF using LibreOffice (or another method)
-def convert_pptx_to_pdf(input_pptx_path):
-    output_pdf_path = input_pptx_path.replace('.pptx', '.pdf')
-    command = f'libreoffice --headless --convert-to pdf "{input_pptx_path}" --outdir "{os.path.dirname(input_pptx_path)}"'
-    os.system(command)
-    return output_pdf_path
+# Function to create a PDF certificate using FPDF
+def create_pdf_certificate(name, output_pdf_path):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    
+    pdf.cell(200, 10, txt="Certificate of Achievement", ln=True, align='C')
+    pdf.cell(200, 10, txt="This is to certify that", ln=True, align='C')
+    pdf.cell(200, 10, txt=name, ln=True, align='C')
+    pdf.cell(200, 10, txt="has successfully completed the course.", ln=True, align='C')
+
+    pdf.output(output_pdf_path)
 
 # Function to send email with attachment
 def send_email(recipient_email, subject, body, attachment_path):
     sender_email = "barathvikraman.projects@gmail.com"  # Your email address
-    sender_password = "sbtz gshq eoos grsd"       # Your email password or app password
+    sender_password = "stlz pqqt prst nfha"       # Your email password or app password
 
     # Create a multipart message and set headers
     msg = MIMEMultipart()
@@ -69,9 +76,6 @@ def send_email(recipient_email, subject, body, attachment_path):
 def main():
     st.title("Certificate Generator")
 
-    # Input for task name (to create a unique folder)
-    task_name = st.text_input("Enter Task Name")
-
     # File upload section for PPTX and Excel files
     template_file = st.file_uploader("Upload PPTX Template", type=["pptx"])
     data_file = st.file_uploader("Upload Excel File", type=["xlsx"])
@@ -80,8 +84,12 @@ def main():
     email_body = st.text_area("Email Body")
 
     if st.button("Generate Certificates"):
-        if template_file and data_file and task_name:
-            # Create a unique folder for this task under uploads directory
+        if template_file and data_file:
+            # Create a unique folder based on task name or timestamp
+            task_name = st.text_input("Enter Task Name")
+            if not task_name:
+                task_name = "Certificates"
+            
             folder_name = f'uploads/{task_name}'
             os.makedirs(folder_name, exist_ok=True)
 
@@ -106,8 +114,11 @@ def main():
                 # Modify the PPTX template and save it with the name replaced
                 modify_pptx(template_path, name, output_pptx_filepath)
 
-                # Convert modified PPTX to PDF (make sure LibreOffice is installed)
-                pdf_filepath = convert_pptx_to_pdf(output_pptx_filepath)
+                # Create PDF certificate using FPDF
+                pdf_filename = f'certificate_{index + 1}.pdf'
+                pdf_filepath = os.path.join(folder_name, pdf_filename)
+                
+                create_pdf_certificate(name, pdf_filepath)
 
                 # Check if PDF was created successfully before sending email
                 if os.path.exists(pdf_filepath):
