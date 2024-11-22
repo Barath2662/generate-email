@@ -40,25 +40,29 @@ def send_email(recipient_email, subject, body, attachment_path):
     msg.attach(MIMEText(body.format(name=recipient_email.split('@')[0]), 'plain'))
 
     # Attach the certificate file (PDF)
-    with open(attachment_path, "rb") as attachment:
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(attachment.read())
-        encoders.encode_base64(part)
-        part.add_header(
-            "Content-Disposition",
-            f"attachment; filename= {os.path.basename(attachment_path)}",
-        )
-        msg.attach(part)
-
-    # Send email via SMTP server
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()  # Upgrade the connection to secure
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            st.success(f"Email sent to {recipient_email}")
-    except Exception as e:
-        st.error(f"Failed to send email to {recipient_email}: {str(e)}")
+        with open(attachment_path, "rb") as attachment:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename= {os.path.basename(attachment_path)}",
+            )
+            msg.attach(part)
+
+        # Send email via SMTP server
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                server.starttls()  # Upgrade the connection to secure
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+                st.success(f"Email sent to {recipient_email}")
+        except Exception as e:
+            st.error(f"Failed to send email to {recipient_email}: {str(e)}")
+    
+    except FileNotFoundError:
+        st.error(f"Attachment file not found: {attachment_path}")
 
 def main():
     st.title("Certificate Generator")
@@ -100,9 +104,13 @@ def main():
                 
                 convert_pptx_to_pdf(output_pptx_filepath, pdf_filepath)
 
-                # Send email with attachment (assuming there's an Email column in Excel)
-                recipient_email = row['Email']  # Adjust based on your Excel column name
-                send_email(recipient_email, email_subject, email_body, pdf_filepath)
+                # Check if PDF was created successfully before sending email
+                if os.path.exists(pdf_filepath):
+                    # Send email with attachment (assuming there's an Email column in Excel)
+                    recipient_email = row['Email']  # Adjust based on your Excel column name
+                    send_email(recipient_email, email_subject, email_body, pdf_filepath)
+                else:
+                    st.error(f"Failed to create PDF for {name}")
 
             st.success("All certificates generated and emailed successfully!")
 
